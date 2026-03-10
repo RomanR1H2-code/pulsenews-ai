@@ -1,0 +1,605 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f5f7fa;
+  color: #333;
+}
+header {
+  background-color: #4f46e5;
+  color: #fff;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+header h1 {
+  margin: 0;
+  font-size: 24px;
+}
+header nav a {
+  color: #fff;
+  margin-left: 16px;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+/* отображение количества токенов в шапке */
+header nav .token-display {
+  margin-left: 16px;
+  font-weight: bold;
+}
+
+/* оформление личного кабинета */
+.profile-container {
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+.profile-container h2 {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+.profile-container p {
+  margin: 8px 0;
+}
+.profile-container button {
+  margin-top: 24px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #4f46e5;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+main {
+  padding: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.search-bar {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 8px;
+}
+.search-bar input {
+  flex-grow: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.category-filter {
+  margin-bottom: 16px;
+}
+.category-filter button {
+  margin: 4px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  background-color: #e5e7eb;
+  cursor: pointer;
+}
+.category-filter button.active {
+  background-color: #4f46e5;
+  color: #fff;
+}
+.article {
+  background-color: #fff;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+}
+.article img {
+  width: 100%;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+.article h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+.article small {
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+.article p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* реакция на статьи */
+.reactions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.reaction-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  color: #4f46e5;
+  transition: transform 0.15s ease, background-color 0.2s ease;
+}
+.reaction-btn:hover {
+  transform: scale(1.05);
+}
+
+/* Цвета реакций: градации фирменного фиолетового */
+.reaction-btn[data-type="sad"] {
+  background-color: #e0e7ff;
+}
+.reaction-btn[data-type="happy"] {
+  background-color: #c7d2fe;
+}
+.reaction-btn[data-type="cry"] {
+  background-color: #a5b4fc;
+  color: #ffffff;
+}
+.reaction-btn[data-type="heart"] {
+  background-color: #818cf8;
+  color: #ffffff;
+}
+.reaction-btn[data-type="thumb"] {
+  background-color: #6366f1;
+  color: #ffffff;
+}
+
+/* карточка рекламы, показ для пользователей без подписки */
+.ad-card {
+  margin: 16px auto;
+  padding: 16px;
+  background-color: #fff7ed;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  max-width: 900px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+.ad-card h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: #92400e;
+}
+.ad-card p {
+  margin: 0;
+  color: #92400e;
+}
+
+/* стиль для paywall */
+.paywall-container {
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+.paywall-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+.paywall-actions button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #4f46e5;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+.paywall-actions button:nth-child(2) {
+  background-color: #e5e7eb;
+  color: #333;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* предупреждение для пользователей с включённым блокировщиком рекламы */
+.adblock-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+  padding: 12px;
+  text-align: center;
+  font-size: 14px;
+}
+
+/* Секция комментариев */
+.comment-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+.comment {
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.comment-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.comment-form input {
+  flex-grow: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.comment-form button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  background-color: #4f46e5;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.profile-container ul {
+  list-style: none;
+  padding: 0;
+}
+.profile-container li {
+  margin: 4px 0;
+  font-size: 16px;
+}
+/* Login form */
+.login-container {
+  max-width: 400px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.login-container h2 {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+.login-container form input {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.login-container form button {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  background-color: #4f46e5;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+@media (min-width: 600px) {
+  .article {
+    flex-direction: row;
+  }
+  .article img {
+    width: 200px;
+    margin-right: 16px;
+  }
+  .article-content {
+    flex: 1;
+  }
+}
+
+/* кнопка жалобы под комментарием */
+.report-btn {
+  background: none;
+  border: none;
+  color: #6366f1;
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+.report-btn:hover {
+  text-decoration: underline;
+}
+
+/* оверлей для формы жалобы */
+.report-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.report-form {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  max-width: 300px;
+  width: 100%;
+}
+.report-form h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+.report-option {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.report-option input {
+  margin-right: 8px;
+}
+.report-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.report-actions button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.report-actions button:first-child {
+  background-color: #4f46e5;
+  color: #fff;
+}
+.report-actions button:last-child {
+  background-color: #e5e7eb;
+  color: #333;
+}
+.bot-message {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #065f46;
+  background-color: #d1fae5;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+/* стили для службы поддержки */
+.support-container {
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.support-issues {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.support-issue-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  background-color: #e5e7eb;
+  cursor: pointer;
+  text-align: left;
+}
+.support-issue-btn:hover {
+  background-color: #d8dbe0;
+}
+.support-response {
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: #f3f4f6;
+  border-radius: 4px;
+}
+.support-back-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #4f46e5;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* стили для радио */
+.radio-container {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.radio-controls {
+  margin-bottom: 16px;
+}
+.radio-controls label {
+  font-weight: bold;
+}
+.radio-controls select {
+  margin-left: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+.station-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.station-list li {
+  margin-bottom: 8px;
+}
+.station-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  background-color: #e5e7eb;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.station-btn:hover {
+  background-color: #d8dbe0;
+}
+.station-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 2px;
+}
+.radio-player {
+  margin-top: 16px;
+  background: #f3f4f6;
+  padding: 12px;
+  border-radius: 4px;
+}
+.radio-player h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+.radio-back-btn {
+  margin-top: 16px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #4f46e5;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+.error-msg {
+  margin-bottom: 12px;
+  color: #b91c1c;
+  background-color: #fee2e2;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+/* стили для предложения новостей */
+.suggest-container {
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.suggest-form input,
+.suggest-form textarea {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.suggest-form textarea {
+  resize: vertical;
+}
+.suggest-form button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #4f46e5;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+.suggest-back-btn {
+  margin-top: 16px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #4f46e5;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+.success-msg {
+  margin-bottom: 12px;
+  color: #065f46;
+  background-color: #d1fae5;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+/* стили для страницы проверки новостей */
+.review-container {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.review-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.review-item {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.review-item h3 {
+  margin: 0 0 8px;
+}
+.review-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+.review-actions button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.review-actions button:first-child {
+  background-color: #4f46e5;
+  color: #fff;
+}
+.review-actions button:last-child {
+  background-color: #e5e7eb;
+  color: #333;
+}
+.review-back-btn {
+  margin-top: 16px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #4f46e5;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}

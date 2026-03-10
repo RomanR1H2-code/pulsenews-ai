@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PulseNews AI</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- React via CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    function Login({ onLogin }) {
+      const [username, setUsername] = React.useState('');
+      const [password, setPassword] = React.useState('');
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (username) {
+          onLogin(username);
+        }
+      };
+      return (
+        <div className="login-container">
+          <h2>Вход</h2>
+          <form onSubmit={handleSubmit}>
+            <input type="text" placeholder="Имя пользователя" value={username} onChange={(e) => setUsername(e.target.value)} required />
+            <input type="password" placeholder="Пароль" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <button type="submit">Войти</button>
+          </form>
+        </div>
+      );
+    }
+
+    // Шапка приложения отображает приветствие, текущий баланс токенов
+    // и предоставляет ссылки в личный кабинет и на выход.
+function Header({ user, tokens, onLogout, onProfile, onSupport, onRadio, onSuggest, onModerate }) {
+      return (
+        <header>
+          <h1>PulseNews AI</h1>
+          <nav>
+            <span>Привет, {user}</span>
+            {/* выводим количество накопленных токенов */}
+            <span className="token-display">Токены: {tokens}</span>
+            {/* ссылка в личный кабинет */}
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onProfile();
+              }}
+            >Личный кабинет</a>
+            {/* ссылка в поддержку */}
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                if (typeof onSupport === 'function') onSupport();
+              }}
+            >Поддержка</a>
+            {/* ссылка на раздел радио */}
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                if (typeof onRadio === 'function') onRadio();
+              }}
+            >Радио</a>
+            {/* ссылка для предложения новости */}
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                if (typeof onSuggest === 'function') onSuggest();
+              }}
+            >Предложить новость</a>
+            {/* ссылка для проверки предложенных новостей */}
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                if (typeof onModerate === 'function') onModerate();
+              }}
+            >Проверка</a>
+            {/* ссылка для выхода */}
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onLogout();
+              }}
+            >Выйти</a>
+          </nav>
+        </header>
+      );
+    }
+
+function Article({ article, user, onArticleView, onCommentPosted }) {
+      // Simple summarization: take first two sentences
+      const summary = article.content.split('. ').slice(0, 2).join('. ') + (article.content.split('. ').length > 2 ? '...' : '');
+      return (
+        <div
+          className="article"
+          onClick={() => {
+            // фиксируем просмотр статьи, если передан обработчик
+            if (typeof onArticleView === 'function') onArticleView();
+          }}
+        >
+          <img src={article.image || 'https://via.placeholder.com/400x200'} alt="Изображение" />
+          <div className="article-content">
+            <h2>{article.title}</h2>
+            <small>{article.date} • {article.category}</small>
+            <p>{summary}</p>
+          </div>
+          {/* Секция реакций для каждой статьи */}
+          <Reactions articleId={article.id} />
+          {/* Секция комментариев для каждой статьи */}
+          <Comments
+            articleId={article.id}
+            category={article.category}
+            user={user}
+            onCommentPosted={onCommentPosted}
+          />
+        </div>
+      );
+    }
+
+    // Компонент комментариев. Позволяет пользователям оставлять мнения и просматривать существующие.
+    function Comments({ articleId, category, user, onCommentPosted }) {
+      const [comments, setComments] = React.useState(() => {
+        const stored = localStorage.getItem('pulsenews_comments_' + articleId);
+        return stored ? JSON.parse(stored) : [];
+      });
+      const [text, setText] = React.useState('');
+      // состояние для отправки жалобы
+      const [reportFor, setReportFor] = React.useState(null); // индекс комментария, на который жалоба
+      const [selectedReason, setSelectedReason] = React.useState('');
+      const [botMessage, setBotMessage] = React.useState('');
+      const reportReasons = ['Спам', 'Оскорбление', 'Неподобающий контент', 'Другое'];
+
+      const addComment = () => {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        const newComment = {
+          user,
+          text: trimmed,
+          date: new Date().toISOString(),
+        };
+        const updated = [...comments, newComment];
+        setComments(updated);
+        localStorage.setItem('pulsenews_comments_' + articleId, JSON.stringify(updated));
+        // Обновляем интересы пользователя: увеличиваем счётчик категории
+        if (user) {
+          const key = 'pulsenews_interests_' + user;
+          const storedInterests = localStorage.getItem(key);
+          let obj;
+          try {
+            obj = storedInterests ? JSON.parse(storedInterests) : {};
+          } catch (e) {
+            obj = {};
+          }
+          obj[category] = (obj[category] || 0) + 1;
+          localStorage.setItem(key, JSON.stringify(obj));
+        }
+        setText('');
+        // уведомляем родительский компонент о публикации комментария
+        if (typeof onCommentPosted === 'function') {
+          onCommentPosted();
+        }
+      };
+      const startReport = (index) => {
+        setReportFor(index);
+        setSelectedReason('');
+        setBotMessage('');
+      };
+      const submitReport = () => {
+        if (reportFor === null || !selectedReason) return;
+        // сохраняем жалобу в localStorage
+        const key = 'pulsenews_complaints';
+        let arr;
+        try {
+          arr = localStorage.getItem(key) ? JSON.parse(localStorage.getItem(key)) : [];
+        } catch (e) {
+          arr = [];
+        }
+        arr.push({
+          reporter: user,
+          articleId: articleId,
+          commentIndex: reportFor,
+          reason: selectedReason,
+          date: new Date().toISOString(),
+        });
+        localStorage.setItem(key, JSON.stringify(arr));
+        // простое сообщение от бота в ответ
+        setBotMessage('Спасибо! Ваша жалоба будет рассмотрена нашим AI‑агентом.');
+        // закрыть форму после отправки
+        setReportFor(null);
+        setSelectedReason('');
+      };
+      return (
+        <div className="comment-section">
+          <h4>Комментарии</h4>
+          {comments.map((c, idx) => (
+            <div key={idx} className="comment">
+              <strong>{c.user}</strong>: {c.text}{' '}
+              {/* кнопка пожаловаться */}
+              <button className="report-btn" onClick={() => startReport(idx)}>Пожаловаться</button>
+            </div>
+          ))}
+          <div className="comment-form">
+            <input
+              type="text"
+              placeholder="Напишите комментарий..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
+            <button onClick={addComment}>Отправить</button>
+          </div>
+          {/* Форма для выбора причины жалобы */}
+          {reportFor !== null && (
+            <div className="report-overlay">
+              <div className="report-form">
+                <h4>Причина жалобы</h4>
+                {reportReasons.map((r) => (
+                  <label key={r} className="report-option">
+                    <input
+                      type="radio"
+                      name="reportReason"
+                      value={r}
+                      checked={selectedReason === r}
+                      onChange={() => setSelectedReason(r)}
+                    />{' '}
+                    {r}
+                  </label>
+                ))}
+                <div className="report-actions">
+                  <button onClick={submitReport} disabled={!selectedReason}>Отправить</button>
+                  <button onClick={() => { setReportFor(null); setSelectedReason(''); }}>Отмена</button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Сообщение от бота после отправки жалобы */}
+          {botMessage && <div className="bot-message">{botMessage}</div>}
+        </div>
+      );
+    }
+
+    // Компонент реакций: позволяет пользователям выражать эмоции к статье с помощью смайликов
+    function Reactions({ articleId }) {
+      const reactionTypes = [
+        { key: 'sad', emoji: '😢' },
+        { key: 'happy', emoji: '😊' },
+        { key: 'cry', emoji: '😭' },
+        { key: 'heart', emoji: '❤️' },
+        { key: 'thumb', emoji: '👍' },
+      ];
+      const [counts, setCounts] = React.useState(() => {
+        const stored = localStorage.getItem('pulsenews_reactions_' + articleId);
+        let obj;
+        try {
+          obj = stored ? JSON.parse(stored) : {};
+        } catch (e) {
+          obj = {};
+        }
+        // инициализируем нулевыми значениями для всех типов, если нет в хранилище
+        reactionTypes.forEach(({ key }) => {
+          if (typeof obj[key] !== 'number') obj[key] = 0;
+        });
+        return obj;
+      });
+      const handleReact = (key) => {
+        setCounts((prev) => {
+          const newCounts = { ...prev, [key]: prev[key] + 1 };
+          localStorage.setItem('pulsenews_reactions_' + articleId, JSON.stringify(newCounts));
+          return newCounts;
+        });
+      };
+      return (
+        <div className="reactions">
+          {reactionTypes.map(({ key, emoji }) => (
+            <button
+              key={key}
+              className="reaction-btn"
+              data-type={key}
+              onClick={() => handleReact(key)}
+              title={key}
+            >
+              <span role="img" aria-label={key} style={{ marginRight: '4px' }}>{emoji}</span>
+              {counts[key]}
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    // Компонент поддержки: предлагает пользователю выбрать тип проблемы и даёт базовые ответы
+    function Support({ onBack }) {
+      const issues = {
+        'Не могу войти': 'Если вы забыли пароль, попробуйте восстановить его через форму на странице входа.',
+        'Проблема с токенами': 'Токены начисляются за просмотры, активность и комментарии. Убедитесь, что выполняете действия, и проверьте баланс позже.',
+        'Сообщить о нарушении': 'Под каждой статьёй и комментарием есть кнопка жалобы. Используйте её, чтобы сообщить о нарушении.',
+        'Другое': 'Опишите свою проблему подробнее, и наша AI‑поддержка постарается помочь.',
+      };
+      const [selected, setSelected] = React.useState('');
+      return (
+        <div className="support-container">
+          <h2>Служба поддержки</h2>
+          <p>Выберите тему, которая вас беспокоит:</p>
+          <div className="support-issues">
+            {Object.keys(issues).map((issue) => (
+              <button key={issue} onClick={() => setSelected(issue)} className="support-issue-btn">
+                {issue}
+              </button>
+            ))}
+          </div>
+          {selected && (
+            <div className="support-response">
+              <p><strong>AI:</strong> {issues[selected]}</p>
+            </div>
+          )}
+          <button className="support-back-btn" onClick={onBack}>Назад</button>
+        </div>
+      );
+    }
+
+    // Компонент отображения рекламы в ленте, используется для пользователей без подписки
+    function AdCard() {
+      return (
+        <div className="ad-card">
+          <h3>Реклама</h3>
+          <p>
+            Попробуйте наш новый продукт: подписка PulseNews&nbsp;Pro без рекламы!
+          </p>
+        </div>
+      );
+    }
+
+    // Компонент подписки (paywall): показывает пользователю варианты после окончания триала
+    function Paywall({ trialDaysLeft, onSubscribe, onContinue }) {
+      return (
+        <div className="paywall-container">
+          <h2>Пробная версия завершена</h2>
+          <p>
+            Ваш бесплатный пробный период закончился. Вы можете оформить
+            подписку за 1 доллар в месяц, чтобы пользоваться PulseNews AI без
+            рекламы, или продолжить просмотр с рекламой.
+          </p>
+          <div className="paywall-actions">
+            <button onClick={onSubscribe}>Подписаться</button>
+            <button onClick={onContinue}>Продолжить с рекламой</button>
+          </div>
+        </div>
+      );
+    }
+
+// Компонент радио. Позволяет пользователю выбирать страну и слушать интернет‑радиостанции.
+function Radio({ onBack }) {
+  const [country, setCountry] = React.useState('ua');
+  const [stations, setStations] = React.useState([]);
+  const [selected, setSelected] = React.useState(null);
+  const [error, setError] = React.useState('');
+  // Загружаем список станций при изменении выбранной страны
+  React.useEffect(() => {
+    async function fetchStations() {
+      try {
+        setError('');
+        setSelected(null);
+        const res = await fetch(
+          `https://de1.api.radio-browser.info/json/stations/bycountrycodeexact/${country}`,
+          {
+            headers: {
+              // Радио‑браузер требует указать User‑Agent с названием приложения
+              'User-Agent': 'PulseNews-AI/1.0',
+            },
+          }
+        );
+        const data = await res.json();
+        // Сортируем по популярности (clickcount) и берём первые 20 станций
+        const sorted = data.sort((a, b) => (b.clickcount || 0) - (a.clickcount || 0));
+        setStations(sorted.slice(0, 20));
+      } catch (err) {
+        console.error(err);
+        setError('Не удалось загрузить станции');
+      }
+    }
+    fetchStations();
+  }, [country]);
+  return (
+    <div className="radio-container">
+      <h2>Онлайн радио</h2>
+      <div className="radio-controls">
+        <label>
+          Страна:
+          <select value={country} onChange={(e) => setCountry(e.target.value)}>
+            <option value="ua">Украина</option>
+            <option value="ru">Россия</option>
+            <option value="us">США</option>
+            <option value="gb">Великобритания</option>
+            <option value="de">Германия</option>
+            <option value="jp">Япония</option>
+            <option value="fr">Франция</option>
+            <option value="it">Италия</option>
+          </select>
+        </label>
+      </div>
+      {error && <p className="error-msg">{error}</p>}
+      <ul className="station-list">
+        {stations.map((st) => (
+          <li key={st.stationuuid}>
+            <button className="station-btn" onClick={() => setSelected(st)}>
+              {st.favicon && (
+                <img src={st.favicon} alt="favicon" className="station-icon" />
+              )}
+              <span>{st.name}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {selected && (
+        <div className="radio-player">
+          <h3>{selected.name}</h3>
+          <audio controls src={selected.url_resolved} autoPlay />
+        </div>
+      )}
+      <button className="radio-back-btn" onClick={onBack}>Назад</button>
+    </div>
+  );
+}
+
+// Компонент для предложения новой новости пользователем.
+function SuggestNews({ user, onBack }) {
+  const [title, setTitle] = React.useState('');
+  const [description, setDescription] = React.useState('');
+  const [proof, setProof] = React.useState('');
+  const [submitted, setSubmitted] = React.useState(false);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const t = title.trim();
+    const d = description.trim();
+    if (!t || !d) return;
+    const suggestion = {
+      user,
+      title: t,
+      description: d,
+      proof: proof.trim(),
+      date: new Date().toISOString(),
+      verified: false,
+    };
+    let arr;
+    try {
+      arr = localStorage.getItem('pulsenews_suggestions')
+        ? JSON.parse(localStorage.getItem('pulsenews_suggestions'))
+        : [];
+    } catch (e) {
+      arr = [];
+    }
+    arr.push(suggestion);
+    localStorage.setItem('pulsenews_suggestions', JSON.stringify(arr));
+    setTitle('');
+    setDescription('');
+    setProof('');
+    setSubmitted(true);
+  };
+  return (
+    <div className="suggest-container">
+      <h2>Предложить новость</h2>
+      {submitted ? (
+        <p className="success-msg">
+          Спасибо! Ваша новость направлена на проверку нашей редакции.
+        </p>
+      ) : (
+        <form onSubmit={handleSubmit} className="suggest-form">
+          <input
+            type="text"
+            placeholder="Заголовок новости"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
+          <textarea
+            placeholder="Описание / текст новости"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+            required
+          />
+          <input
+            type="text"
+            placeholder="Ссылка на подтверждение (опционально)"
+            value={proof}
+            onChange={(e) => setProof(e.target.value)}
+          />
+          <button type="submit">Отправить</button>
+        </form>
+      )}
+      <button className="suggest-back-btn" onClick={onBack}>Назад</button>
+    </div>
+  );
+}
+
+// Компонент модерации предложенных новостей.
+function ReviewSuggestions({ onBack }) {
+  const [items, setItems] = React.useState([]);
+  // загружаем непроверённые предложения из localStorage
+  React.useEffect(() => {
+    let arr;
+    try {
+      arr = localStorage.getItem('pulsenews_suggestions')
+        ? JSON.parse(localStorage.getItem('pulsenews_suggestions'))
+        : [];
+    } catch (e) {
+      arr = [];
+    }
+    // отображаем только те, что ещё не обработаны
+    setItems(arr.filter((s) => !s.processed));
+  }, []);
+  // простая функция анализа новости: смотрим на длину текста и наличие пруфа
+  const analyze = (s) => {
+    const wordCount = s.description ? s.description.split(/\s+/).length : 0;
+    const hasProof = s.proof && s.proof.trim() !== '';
+    if (hasProof && wordCount > 20) return 'интересная';
+    if (hasProof || wordCount > 10) return 'второстепенная';
+    return 'неинтересная';
+  };
+  // helper для обновления записи в localStorage по уникальному признаку
+  const updateSuggestionState = (target, updates) => {
+    let all;
+    try {
+      all = localStorage.getItem('pulsenews_suggestions')
+        ? JSON.parse(localStorage.getItem('pulsenews_suggestions'))
+        : [];
+    } catch (e) {
+      all = [];
+    }
+    const updatedAll = all.map((s) => {
+      if (
+        s.user === target.user &&
+        s.title === target.title &&
+        s.date === target.date
+      ) {
+        return { ...s, ...updates };
+      }
+      return s;
+    });
+    localStorage.setItem('pulsenews_suggestions', JSON.stringify(updatedAll));
+  };
+  const approve = (index) => {
+    const s = items[index];
+    // добавляем в список одобренных
+    let approved;
+    try {
+      approved = localStorage.getItem('pulsenews_user_approved_news')
+        ? JSON.parse(localStorage.getItem('pulsenews_user_approved_news'))
+        : [];
+    } catch (e) {
+      approved = [];
+    }
+    approved.push(s);
+    localStorage.setItem('pulsenews_user_approved_news', JSON.stringify(approved));
+    // помечаем как обработанный и верифицированный
+    updateSuggestionState(s, { processed: true, verified: true });
+    setItems(items.filter((_, i) => i !== index));
+  };
+  const reject = (index) => {
+    const s = items[index];
+    updateSuggestionState(s, { processed: true, verified: false });
+    setItems(items.filter((_, i) => i !== index));
+  };
+  return (
+    <div className="review-container">
+      <h2>Проверка предложенных новостей</h2>
+      {items.length === 0 ? (
+        <p>Непроверённых предложений нет.</p>
+      ) : (
+        <ul className="review-list">
+          {items.map((s, idx) => (
+            <li key={idx} className="review-item">
+              <h3>{s.title}</h3>
+              <p>{s.description}</p>
+              {s.proof && (
+                <p>
+                  <strong>Пруф:</strong>{' '}
+                  <a href={s.proof} target="_blank" rel="noopener noreferrer">
+                    {s.proof}
+                  </a>
+                </p>
+              )}
+              <p>
+                Оценка: <strong>{analyze(s)}</strong>
+              </p>
+              <div className="review-actions">
+                <button onClick={() => approve(idx)}>Одобрить</button>
+                <button onClick={() => reject(idx)}>Отклонить</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button className="review-back-btn" onClick={onBack}>Назад</button>
+    </div>
+  );
+}
+function Dashboard({ user, logout, tokens, setTokens, goToProfile, recordArticleView, recordCommentPosted, goToSupport, goToRadio, goToSuggestNews, goToModeration, showAds }) {
+      const [news, setNews] = React.useState([]);
+      const [filtered, setFiltered] = React.useState([]);
+      const [categories, setCategories] = React.useState([]);
+      const [selectedCategory, setSelectedCategory] = React.useState('Все');
+      const [searchQuery, setSearchQuery] = React.useState('');
+      // Текущий баланс токенов и функции для работы с ними приходят через пропсы
+
+      React.useEffect(() => {
+        fetch('../data/news.json')
+          .then((res) => res.json())
+          .then((data) => {
+            // получаем одобренные пользовательские новости из localStorage
+            let approved = [];
+            try {
+              approved = localStorage.getItem('pulsenews_user_approved_news')
+                ? JSON.parse(localStorage.getItem('pulsenews_user_approved_news'))
+                : [];
+            } catch (e) {
+              approved = [];
+            }
+            // преобразуем каждую одобренную новость в формат статьи
+            const approvedArticles = approved.map((item, idx) => {
+              return {
+                id: 10000 + idx, // создаём уникальный id для пользовательских новостей
+                title: item.title,
+                category: 'От пользователей',
+                date: item.date.split('T')[0],
+                content: item.description,
+                image: item.proof || 'https://via.placeholder.com/400x200?text=User+News',
+              };
+            });
+            const combined = [...approvedArticles, ...data];
+            setNews(combined);
+            setFiltered(combined);
+            const cats = Array.from(new Set(combined.map((item) => item.category)));
+            setCategories(['Все', ...cats]);
+          })
+          .catch((err) => console.error(err));
+      }, []);
+
+      React.useEffect(() => {
+        let filteredData = news;
+        if (selectedCategory !== 'Все') {
+          filteredData = filteredData.filter((item) => item.category === selectedCategory);
+        }
+        if (searchQuery.trim() !== '') {
+          const q = searchQuery.toLowerCase();
+          filteredData = filteredData.filter((item) => item.title.toLowerCase().includes(q) || item.content.toLowerCase().includes(q));
+        }
+        setFiltered(filteredData);
+      }, [selectedCategory, searchQuery, news]);
+
+      // Никаких автоматических начислений токенов в Dashboard больше нет. Токены начисляются за конкретные действия.
+
+      return (
+        <div>
+          <Header
+            user={user}
+            tokens={tokens}
+            onLogout={logout}
+            onProfile={goToProfile}
+            onSupport={goToSupport}
+            onRadio={goToRadio}
+            onSuggest={goToSuggestNews}
+            onModerate={goToModeration}
+          />
+          {showAds && <AdCard />}
+          <main>
+            <div className="search-bar">
+              <input type="text" placeholder="Поиск..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            </div>
+            <div className="category-filter">
+              {categories.map((cat) => (
+                <button key={cat} className={selectedCategory === cat ? 'active' : ''} onClick={() => setSelectedCategory(cat)}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+            {filtered.map((article) => (
+              <Article
+                key={article.id}
+                article={article}
+                user={user}
+                onArticleView={recordArticleView}
+                onCommentPosted={recordCommentPosted}
+              />
+            ))}
+          </main>
+        </div>
+      );
+    }
+
+    // Страница личного кабинета: показывает имя пользователя и его накопленные токены.
+    function Profile({ user, tokens, onBack }) {
+      // загружаем интересы пользователя из localStorage и сортируем по убыванию количества
+      const [interests, setInterests] = React.useState([]);
+      React.useEffect(() => {
+        const key = 'pulsenews_interests_' + user;
+        const stored = localStorage.getItem(key);
+        let obj;
+        try {
+          obj = stored ? JSON.parse(stored) : {};
+        } catch (e) {
+          obj = {};
+        }
+        const entries = Object.entries(obj).sort((a, b) => b[1] - a[1]);
+        setInterests(entries);
+      }, [user]);
+      return (
+        <div className="profile-container">
+          <h2>Личный кабинет</h2>
+          <p>Пользователь: {user}</p>
+          <p>Количество токенов: {tokens}</p>
+          <h3>Ваши интересы</h3>
+          {interests.length > 0 ? (
+            <ul>
+              {interests.map(([cat, count]) => (
+                <li key={cat}>{cat}: {count}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>Интересы пока не определены. Комментируйте статьи, чтобы мы поняли, что вам интересно.</p>
+          )}
+          <button onClick={onBack}>Назад</button>
+        </div>
+      );
+    }
+
+    function App() {
+      const [user, setUser] = React.useState(localStorage.getItem('pulsenews_user') || '');
+      // Храним текущую страницу: dashboard или profile
+      const [view, setView] = React.useState('dashboard');
+      // Загружаем токены для пользователя из localStorage или ноль
+      const [tokens, setTokens] = React.useState(() => {
+        if (!user) return 0;
+        const stored = localStorage.getItem('pulsenews_tokens_' + user);
+        return stored ? parseInt(stored, 10) : 0;
+      });
+
+      // состояние подписки: true, если пользователь оформил платную подписку
+      const [subscribed, setSubscribed] = React.useState(() => {
+        if (!user) return false;
+        return localStorage.getItem('pulsenews_subscribed_' + user) === 'true';
+      });
+      // оставшиеся дни пробного периода
+      const [trialDaysLeft, setTrialDaysLeft] = React.useState(3);
+      // показывать ли рекламу (true для пользователей без подписки после окончания триала)
+      const [showAds, setShowAds] = React.useState(false);
+
+      // состояние для определения наличия блокировщика рекламы
+      const [adBlocked, setAdBlocked] = React.useState(false);
+
+      // проверяем наличие блокировщика рекламы при монтировании компонента
+      React.useEffect(() => {
+        function checkAdBlock() {
+          // создаём приманку, которую многие блокировщики скрывают
+          const testAd = document.createElement('div');
+          testAd.className = 'adsbox';
+          // элементы с классом adsbox обычно блокируются фильтрами
+          testAd.style.position = 'absolute';
+          testAd.style.height = '1px';
+          testAd.style.width = '1px';
+          testAd.style.top = '-1000px';
+          document.body.appendChild(testAd);
+          const style = window.getComputedStyle(testAd);
+          const blocked =
+            testAd.offsetHeight === 0 ||
+            style.display === 'none' ||
+            style.visibility === 'hidden';
+          document.body.removeChild(testAd);
+          setAdBlocked(blocked);
+        }
+        checkAdBlock();
+      }, []);
+
+      const login = (username) => {
+        localStorage.setItem('pulsenews_user', username);
+        // если у пользователя ещё нет сохранённых токенов, создаём запись
+        if (!localStorage.getItem('pulsenews_tokens_' + username)) {
+          localStorage.setItem('pulsenews_tokens_' + username, '0');
+        }
+        setTokens(parseInt(localStorage.getItem('pulsenews_tokens_' + username), 10) || 0);
+        setUser(username);
+        // инициализируем дату начала пробного периода, если ещё не задана
+        const trialKey = 'pulsenews_trialStart_' + username;
+        if (!localStorage.getItem(trialKey)) {
+          localStorage.setItem(trialKey, new Date().toISOString());
+        }
+        // загружаем статус подписки
+        const subKey = 'pulsenews_subscribed_' + username;
+        setSubscribed(localStorage.getItem(subKey) === 'true');
+        setShowAds(false);
+        setView('dashboard');
+      };
+
+      const logout = () => {
+        localStorage.removeItem('pulsenews_user');
+        setUser('');
+        setView('dashboard');
+      };
+
+      const goToProfile = () => setView('profile');
+      const backToDashboard = () => setView('dashboard');
+      const goToSupport = () => setView('support');
+      // дополнительные навигационные функции
+      const goToRadio = () => setView('radio');
+      const goToSuggestNews = () => setView('suggest');
+      const goToModeration = () => setView('review');
+
+      // --- система начисления токенов за действия ---
+      // функция для выдачи одного токена и сохранения его в localStorage
+      const awardToken = () => {
+        setTokens((prev) => {
+          const newVal = prev + 1;
+          if (user) {
+            localStorage.setItem('pulsenews_tokens_' + user, String(newVal));
+          }
+          return newVal;
+        });
+      };
+
+      // получить числовой счётчик из localStorage
+      const getCounter = (key) => {
+        const val = localStorage.getItem(key);
+        return val ? parseInt(val, 10) : 0;
+      };
+
+      // записываем просмотр статьи и начисляем токен за каждые 10 просмотров
+      const recordArticleView = () => {
+        if (!user) return;
+        const key = 'pulsenews_articlesViewed_' + user;
+        let count = getCounter(key);
+        count++;
+        if (count >= 10) {
+          count -= 10;
+          awardToken();
+        }
+        localStorage.setItem(key, String(count));
+      };
+
+      // записываем публикацию комментария и начисляем токен за каждые 5 комментариев
+      const recordCommentPosted = () => {
+        if (!user) return;
+        const key = 'pulsenews_commentsCount_' + user;
+        let count = getCounter(key);
+        count++;
+        if (count >= 5) {
+          count -= 5;
+          awardToken();
+        }
+        localStorage.setItem(key, String(count));
+      };
+
+      // при загрузке приложения и смене пользователя инициализируем счётчики
+      React.useEffect(() => {
+        if (user) {
+          if (!localStorage.getItem('pulsenews_articlesViewed_' + user)) {
+            localStorage.setItem('pulsenews_articlesViewed_' + user, '0');
+          }
+          if (!localStorage.getItem('pulsenews_commentsCount_' + user)) {
+            localStorage.setItem('pulsenews_commentsCount_' + user, '0');
+          }
+          if (!localStorage.getItem('pulsenews_seconds_' + user)) {
+            localStorage.setItem('pulsenews_seconds_' + user, '0');
+          }
+        }
+      }, [user]);
+
+      // учитываем время, проведённое на сайте: начисляем токен за каждый час активного времени
+      React.useEffect(() => {
+        if (!user) return;
+        const timer = setInterval(() => {
+          const key = 'pulsenews_seconds_' + user;
+          let secs = getCounter(key);
+          secs++;
+          if (secs >= 3600) {
+            secs -= 3600;
+            awardToken();
+          }
+          localStorage.setItem(key, String(secs));
+        }, 1000);
+        return () => clearInterval(timer);
+      }, [user]);
+
+      // вычисляем, сколько дней осталось до окончания пробного периода,
+      // и включаем показ рекламы, если пользователь не подписан
+      React.useEffect(() => {
+        if (!user) return;
+        const trialKey = 'pulsenews_trialStart_' + user;
+        const startStr = localStorage.getItem(trialKey);
+        let remaining = 3;
+        if (startStr) {
+          const startDate = new Date(startStr);
+          const now = new Date();
+          const diffMs = now - startDate;
+          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+          remaining = Math.max(0, 3 - diffDays);
+        }
+        setTrialDaysLeft(remaining);
+        if (!subscribed) {
+          if (remaining <= 0) {
+            // если пробный период закончился и подписки нет,
+            // переводим пользователя на экран выбора (paywall)
+            setView('paywall');
+            setShowAds(true);
+          } else {
+            setShowAds(false);
+          }
+        } else {
+          setShowAds(false);
+        }
+      }, [user, subscribed]);
+
+      // в зависимости от состояния отображаем соответствующий компонент
+      if (!user) {
+        return <Login onLogin={login} />;
+      }
+      // экран paywall, если триал истёк и нет подписки
+      if (view === 'paywall') {
+        return (
+          <Paywall
+            trialDaysLeft={trialDaysLeft}
+            onSubscribe={() => {
+              // сохраняем подписку
+              localStorage.setItem('pulsenews_subscribed_' + user, 'true');
+              setSubscribed(true);
+              setShowAds(false);
+              setView('dashboard');
+            }}
+            onContinue={() => {
+              // пользователь выбирает продолжить с рекламой
+              setShowAds(true);
+              setView('dashboard');
+            }}
+          />
+        );
+      }
+      if (view === 'profile') {
+        return <Profile user={user} tokens={tokens} onBack={backToDashboard} />;
+      }
+      if (view === 'support') {
+        return <Support onBack={backToDashboard} />;
+      }
+      if (view === 'radio') {
+        return <Radio onBack={backToDashboard} />;
+      }
+      if (view === 'suggest') {
+        return <SuggestNews user={user} onBack={backToDashboard} />;
+      }
+      if (view === 'review') {
+        return <ReviewSuggestions onBack={backToDashboard} />;
+      }
+      // По умолчанию показываем основную ленту новостей и передаём функции учёта действий
+      return (
+        <>
+          {/* предупреждение о блокировщике рекламы */}
+          {adBlocked && (
+            <div className="adblock-warning">
+              Обнаружен блокировщик рекламы. Пожалуйста, разрешите показ
+              рекламы для поддержки проекта и получения токенов за просмотры.
+            </div>
+          )}
+          <Dashboard
+            user={user}
+            logout={logout}
+            tokens={tokens}
+            setTokens={setTokens}
+            goToProfile={goToProfile}
+            recordArticleView={recordArticleView}
+            recordCommentPosted={recordCommentPosted}
+            goToSupport={goToSupport}
+            goToRadio={goToRadio}
+            goToSuggestNews={goToSuggestNews}
+            goToModeration={goToModeration}
+            showAds={showAds}
+          />
+        </>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
